@@ -1,162 +1,191 @@
+import streamlit as st
+from database import create_tables, save_goal
+from goal_manager import create_study_plan
+from tutor import tutor_chat
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-:root {
-    --purple: #6c5ce7;
-    --purple-hover: #5847d8;
-    --background: #f7f7fc;
-    --text: #252541;
-    --muted: #85859d;
-    --border: #ececf5;
-}
+# Create database tables
+create_tables()
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-}
 
-.stApp {
-    background: var(--background);
-}
+# Page configuration
+st.set_page_config(
+    page_title="GoalTutor",
+    page_icon="🎓",
+    layout="wide"
+)
 
-.block-container {
-    max-width: 1450px;
-    padding: 2.5rem 3rem;
-}
 
-[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid var(--border);
-}
+# Title
+st.title("🎓 GoalTutor")
+st.subheader("Your Goal-Driven Conversational Tutor")
 
-[data-testid="stSidebar"] > div:first-child {
-    padding: 1.5rem 1rem;
-}
 
-h1, h2, h3 {
-    color: var(--text);
-    letter-spacing: -0.5px;
-}
+# Sidebar
+st.sidebar.header("📚 Learning Goal")
 
-h1 {
-    font-size: 2.25rem !important;
-    font-weight: 800 !important;
-}
+student_name = st.sidebar.text_input(
+    "Your Name",
+    placeholder="Enter your name"
+)
 
-h2 {
-    font-weight: 700 !important;
-}
+subject = st.sidebar.text_input(
+    "Subject",
+    placeholder="Example: Digital Electronics"
+)
 
-p {
-    line-height: 1.7;
-}
+target = st.sidebar.text_area(
+    "Learning Goal",
+    placeholder="Example: Understand digital logic and solve problems"
+)
 
-.stButton > button,
-.stFormSubmitButton > button {
-    background: var(--purple);
-    color: white;
-    border: none;
-    border-radius: 11px;
-    min-height: 44px;
-    font-weight: 600;
-    transition: 0.2s ease;
-}
+duration = st.sidebar.number_input(
+    "Study Duration (days)",
+    min_value=1,
+    max_value=30,
+    value=7
+)
 
-.stButton > button:hover,
-.stFormSubmitButton > button:hover {
-    background: var(--purple-hover);
-    color: white;
-    border: none;
-    transform: translateY(-1px);
-}
+level = st.sidebar.selectbox(
+    "Your Level",
+    ["Beginner", "Intermediate", "Advanced"]
+)
 
-.stTextInput input,
-.stTextArea textarea {
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: #ffffff;
-}
 
-[data-testid="stVerticalBlockBorderWrapper"] {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 8px;
-    box-shadow: 0 5px 22px rgba(45, 40, 100, 0.035);
-}
+# Save goal
+if st.sidebar.button("🎯 Set Goal"):
 
-[data-testid="stMetric"] {
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 18px;
-}
+    if not student_name or not subject or not target:
+        st.sidebar.error("Please fill in all fields.")
 
-[data-testid="stMetricValue"] {
-    color: var(--purple);
-    font-weight: 800;
-}
+    else:
+        goal_id = save_goal(
+            student_name,
+            subject,
+            target,
+            duration,
+            level
+        )
 
-[data-testid="stChatMessage"] {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 14px;
-}
+        st.session_state.goal_id = goal_id
+        st.session_state.student_name = student_name
+        st.session_state.subject = subject
+        st.session_state.target = target
+        st.session_state.level = level
 
-[data-testid="stChatInput"] {
-    border-radius: 14px;
-    background: white;
-}
+        st.session_state.messages = []
 
-.stProgress > div > div > div > div {
-    background: var(--purple);
-}
+        st.sidebar.success("Goal saved successfully! 🎉")
 
-.hero-card {
-    background: linear-gradient(120deg, #6c5ce7, #9b8afc);
-    color: white;
-    padding: 30px;
-    border-radius: 22px;
-    margin: 20px 0;
-    box-shadow: 0 12px 28px rgba(108, 92, 231, 0.16);
-}
 
-.hero-card h2 {
-    color: white !important;
-    font-size: 1.8rem !important;
-}
+# Main application
+if "goal_id" not in st.session_state:
 
-.hero-card p {
-    color: #f2efff !important;
-}
+    st.info(
+        "👈 Enter your learning goal in the sidebar "
+        "and click **Set Goal** to begin."
+    )
 
-.eyebrow {
-    color: #e9e3ff;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-}
+else:
 
-.muted {
-    color: var(--muted);
-    font-size: 0.9rem;
-}
+    st.success(
+        f"🎯 Goal: {st.session_state.target}"
+    )
 
-@media (max-width: 768px) {
-    .block-container {
-        padding: 1.2rem 1rem;
-    }
+    # Tabs
+    tab1, tab2 = st.tabs(
+        ["🤖 AI Tutor", "📅 Study Plan"]
+    )
 
-    h1 {
-        font-size: 1.7rem !important;
-    }
 
-    .hero-card {
-        padding: 22px;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
+    # -------------------------
+    # AI Tutor
+    # -------------------------
+
+    with tab1:
+
+        st.header("🤖 Talk to Your Tutor")
+
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        # Display previous messages
+        for message in st.session_state.messages:
+
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+
+
+        # Chat input
+        user_message = st.chat_input(
+            "Ask your tutor something..."
+        )
+
+
+        if user_message:
+
+            # Show user message
+            st.session_state.messages.append(
+                {
+                    "role": "user",
+                    "content": user_message
+                }
+            )
+
+            with st.chat_message("user"):
+                st.write(user_message)
+
+
+            # Get AI response
+            with st.chat_message("assistant"):
+
+                with st.spinner("Tutor is thinking..."):
+
+                    response = tutor_chat(
+                        st.session_state.student_name,
+                        st.session_state.subject,
+                        st.session_state.target,
+                        "General",
+                        0,
+                        user_message
+                    )
+
+                st.write(response)
+
+
+            # Save assistant response
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": response
+                }
+            )
+
+
+    # -------------------------
+    # Study Plan
+    # -------------------------
+
+    with tab2:
+
+        st.header("📅 Personalized Study Plan")
+
+        if st.button("✨ Generate Study Plan"):
+
+            with st.spinner("Creating your study plan..."):
+
+                plan = create_study_plan(
+                    st.session_state.subject,
+                    st.session_state.target,
+                    duration,
+                    st.session_state.level
+                )
+
+            st.session_state.study_plan = plan
+
+
+        if "study_plan" in st.session_state:
+
+            st.markdown(
+                st.session_state.study_plan
+            )
